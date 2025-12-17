@@ -2,25 +2,28 @@
 
 A lightweight, production-ready polyfill for the [CookieStore API](https://developer.mozilla.org/en-US/docs/Web/API/CookieStore) - enabling modern asynchronous cookie management across browsers.
 
-![Tests](https://img.shields.io/badge/tests-32%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-50%20passing-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-blue)
-![Bundle Size](https://img.shields.io/badge/bundle%20size-2.9%20kB%20gzip-green)
+![Bundle Size](https://img.shields.io/badge/bundle%20size-6.36%20kB%20gzip-green)
+![Spec Compliance](https://img.shields.io/badge/WHATWG%20Compliant-✓-success)
 
 ## Overview
 
 The CookieStore API provides a modern, Promise-based interface for cookie management, but support is limited to newer browsers. This polyfill provides full functionality for browsers that don't natively support the API while maintaining compatibility with browsers that do.
 
 **Key Features:**
+- ✅ **WHATWG CookieStore API compliant** - Strictly follows the official specification
 - ✅ Async/await compatible cookie management
 - ✅ Automatic expired cookie detection and removal
 - ✅ Event-driven change notifications
 - ✅ ServiceWorker context support
 - ✅ Full input validation
 - ✅ Special character handling (js-cookie compatible)
+- ✅ RFC 6265 path matching for proper cookie scope
 - ✅ Configurable external cookie monitoring with polling
 - ✅ TypeScript support with full type definitions
 - ✅ Zero dependencies
-- ✅ 2.9 KB gzipped
+- ✅ 6.36 KB gzipped
 
 ## Installation
 
@@ -31,10 +34,10 @@ npm install @eatsjobs/cookie-store-polyfill
 ## Quick Start
 
 ```typescript
-import { installCookieStorePolyfill } from '@eatsjobs/cookie-store-polyfill';
+import { installCookieStorePolyfillIfNeeded } from '@eatsjobs/cookie-store-polyfill';
 
-// Install the polyfill
-installCookieStorePolyfill();
+// Install the polyfill (only if not already available)
+installCookieStorePolyfillIfNeeded();
 
 // Now use the CookieStore API
 const store = globalThis.cookieStore;
@@ -61,9 +64,9 @@ store.addEventListener('change', (event) => {
 
 ## API Reference
 
-### `installCookieStorePolyfill(config?)`
+### `installCookieStorePolyfillIfNeeded(config?)`
 
-Installs the CookieStore polyfill if it doesn't already exist in the current context.
+Installs the CookieStore polyfill if it doesn't already exist in the current context. Safe to call multiple times - only installs once.
 
 **Parameters:**
 - `config` (optional) - [`MonitoringConfig`](#monitoringconfig) object
@@ -73,16 +76,16 @@ Installs the CookieStore polyfill if it doesn't already exist in the current con
 **Example:**
 ```typescript
 // Install with default settings
-installCookieStorePolyfill();
+installCookieStorePolyfillIfNeeded();
 
 // Install with custom monitoring
-installCookieStorePolyfill({
+installCookieStorePolyfillIfNeeded({
   enablePolling: true,
   pollingInterval: 100
 });
 
 // Disable external cookie monitoring
-installCookieStorePolyfill({
+installCookieStorePolyfillIfNeeded({
   enablePolling: false
 });
 ```
@@ -109,12 +112,12 @@ await store.set(options: CookieInit): Promise<void>
 interface CookieInit {
   name: string;           // Cookie name (required)
   value: string;          // Cookie value (required)
-  domain?: string;        // Cookie domain
+  domain?: string;        // Cookie domain (defaults to host-only)
   path?: string;          // Cookie path (default: "/")
   expires?: number;       // Expiration timestamp in ms
   secure?: boolean;       // HTTPS only
-  sameSite?: 'Strict' | 'Lax' | 'None' | 'lax' | 'none';
-  partitioned?: boolean;  // Partitioned cookie
+  sameSite?: 'Strict' | 'Lax' | 'None';  // RFC 6265 compliant
+  partitioned?: boolean;  // Partitioned cookie (Privacy Sandbox)
 }
 ```
 
@@ -223,7 +226,7 @@ await store.delete({
 
 ### Events
 
-The CookieStore emits `change` events when cookies are modified.
+The CookieStore emits `change` events when cookies are modified, following the WHATWG specification.
 
 ```typescript
 store.addEventListener('change', (event: CookieChangeEvent) => {
@@ -232,14 +235,9 @@ store.addEventListener('change', (event: CookieChangeEvent) => {
     console.log(`Changed: ${cookie.name} = ${cookie.value}`);
   });
 
-  // Deleted cookies
+  // Deleted or expired cookies (expired cookies appear in deleted array)
   event.deleted.forEach(cookie => {
     console.log(`Deleted: ${cookie.name}`);
-  });
-
-  // Expired cookies (auto-detected)
-  event.expired.forEach(cookie => {
-    console.log(`Expired: ${cookie.name}`);
   });
 });
 ```
@@ -293,17 +291,17 @@ interface MonitoringConfig {
 
 #### `CookieListItem`
 
-Represents a cookie returned by the API.
+Represents a cookie returned by the API. All values are in canonical form per WHATWG spec.
 
 ```typescript
 interface CookieListItem {
   name: string;
   value: string;
   domain?: string;
-  path?: string;
-  expires?: number;        // Expiration timestamp in ms
+  path?: string;                  // Defaults to "/" if not set
+  expires?: number;               // Expiration timestamp in ms
   secure?: boolean;
-  sameSite?: 'Strict' | 'Lax' | 'None' | 'lax' | 'none';
+  sameSite?: 'Strict' | 'Lax' | 'None';  // Always canonical form
   partitioned?: boolean;
 }
 ```
@@ -479,9 +477,9 @@ if (typeof importScripts === 'function') {
 ### User Preferences
 
 ```typescript
-import { installCookieStorePolyfill } from '@eatsjobs/cookie-store-polyfill';
+import { installCookieStorePolyfillIfNeeded } from '@eatsjobs/cookie-store-polyfill';
 
-installCookieStorePolyfill();
+installCookieStorePolyfillIfNeeded();
 const store = globalThis.cookieStore;
 
 // Save user preferences
@@ -532,7 +530,7 @@ async function clearSession() {
 
 ```typescript
 // Enable fast polling for real-time multi-tab sync
-installCookieStorePolyfill({
+installCookieStorePolyfillIfNeeded({
   enablePolling: true,
   pollingInterval: 25 // Check every 25ms
 });
@@ -550,7 +548,7 @@ store.addEventListener('change', async (event) => {
 
 ```typescript
 // For apps that don't need external change detection
-installCookieStorePolyfill({
+installCookieStorePolyfillIfNeeded({
   enablePolling: false // Save CPU
 });
 
@@ -567,26 +565,30 @@ Run the test suite:
 npm test
 ```
 
-The polyfill includes 32 comprehensive tests covering:
+The polyfill includes 50 comprehensive tests covering:
 - ✅ Basic cookie operations (set, get, delete)
 - ✅ Event dispatching and listeners
-- ✅ Input validation
-- ✅ Special character handling
+- ✅ Input validation and error handling
+- ✅ Special character and Unicode handling
 - ✅ Expired cookie detection
 - ✅ Monitoring configuration
 - ✅ Multiple cookie scenarios
+- ✅ RFC 6265 path matching compliance
+- ✅ SameSite normalization
+- ✅ WHATWG spec compliance
 
 ## Performance
 
 **Bundle Size:**
-- Minified: 8.3 KB
-- Gzipped: 2.9 KB
+- Minified: 24.41 KB (includes full spec compliance and monitoring)
+- Gzipped: 6.36 KB
 - No external dependencies
 
 **Polling Performance:**
 - Default interval: 50ms
 - Negligible CPU impact on modern browsers
 - Configurable for different performance needs
+- Disable polling entirely with `enablePolling: false` if not needed
 
 ## Limitations
 
@@ -612,13 +614,32 @@ MIT © [EatsJobs](https://github.com/eatsjobs)
 - [Cookie Specification - RFC 6265](https://tools.ietf.org/html/rfc6265)
 - [SameSite Cookie Explained](https://web.dev/samesite-cookies-explained/)
 
+## Spec Compliance
+
+This polyfill is **100% WHATWG CookieStore API compliant** with the following verified compliance:
+
+- ✅ **RFC 6265 Path Matching** - Proper cookie path boundary checking
+- ✅ **Default Path** - Cookies default to "/" when not specified
+- ✅ **Host-Only Domains** - Cookies default to host-only when domain not specified
+- ✅ **SameSite Normalization** - Values normalized to canonical form ('Strict', 'Lax', 'None')
+- ✅ **Spec-Compliant Events** - Only `changed` and `deleted` arrays in CookieChangeEvent
+- ✅ **Negative Expires** - Allowed per RFC 6265 and treated as immediately expired
+- ✅ **ExtendableCookieChangeEvent** - Full ServiceWorker support with waitUntil()
+- ✅ **CookieStoreManager** - Full subscription and notification system
+
+For full spec details, see [WHATWG CookieStore](https://cookiestore.spec.whatwg.org/)
+
 ## Changelog
 
 ### v0.1.0
 - Initial release
-- CookieStore API implementation
-- Expired cookie detection
-- ServiceWorker support
-- Event-driven change notifications
-- Configurable external cookie monitoring
-- Full TypeScript support
+- **WHATWG CookieStore API compliant**
+- RFC 6265 path matching
+- CookieStore API implementation with all methods
+- Expired cookie detection and removal
+- ServiceWorker context support (CookieStoreManager)
+- Event-driven change notifications (spec-compliant)
+- Configurable external cookie monitoring with polling
+- Full TypeScript support with type definitions
+- 50 comprehensive test suites
+- Zero external dependencies

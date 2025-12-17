@@ -10,5 +10,5 @@ export default defineConfig({
   dts: true,
   entry: 'src/index.ts',
   platform: 'browser',
-  minify: false,
+  minify: true,
 });
